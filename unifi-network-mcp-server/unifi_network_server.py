@@ -992,7 +992,7 @@ async def generate_device_report(console_ip: str = "", site_id: str = "", site_n
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"device_report_{timestamp}.md"
         filepath = _write_report(filename, content)
-        return f"📁 Device report generated: {filepath}\n  Devices: {len(devices)} (APs: {ap_count}, Switches: {switch_count}, Other: {other_count})"
+        return f"📁 Device report generated: {filepath}\n  Devices: {len(devices)} (APs: {ap_count}, Switches: {switch_count}, Other: {other_count})\n\n{content}"
     except Exception as e:
         logger.error(f"generate_device_report error: {e}")
         return f"❌ Error: {str(e)}"
@@ -1064,7 +1064,7 @@ async def generate_wifi_report(console_ip: str = "", site_id: str = "") -> str:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"wifi_report_{timestamp}.md"
         filepath = _write_report(filename, content)
-        return f"📁 WiFi report generated: {filepath}\n  Broadcasts: {len(broadcasts)}, Wireless Clients: {len(wireless_clients)}"
+        return f"📁 WiFi report generated: {filepath}\n  Broadcasts: {len(broadcasts)}, Wireless Clients: {len(wireless_clients)}\n\n{content}"
     except Exception as e:
         logger.error(f"generate_wifi_report error: {e}")
         return f"❌ Error: {str(e)}"
