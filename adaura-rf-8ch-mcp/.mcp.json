@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "adaura-rf": {
+      "command": "python",
+      "args": ["/home/mightyficus/mcp-testing/adaura-rf-8ch-mcp/adaura_rf_server.py"]
+    }
+  }
+}

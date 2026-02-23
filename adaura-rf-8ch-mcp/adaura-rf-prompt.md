@@ -51,7 +51,7 @@ In cURL format: `curl -u admin:admin 'http://<IP_ADDRESS>/execute.php?CMD+PARAME
 **Example**: 
 | HTTP Request | Result |
 | --- | --- |
-| `http://192.168.10.10/execute.php?SET+1+95` | Attenuation on chain 1 is changed to 95 dB |
+| `http://<IP_ADDRESS>/execute.php?SET+1+95` | Attenuation on chain 1 is changed to 95 dB |
 
 #### Set All Attenuators
 **Command Format**: `SAA [Atten]` **or** `SAA [Atten Ch.1] [Atten Ch.2] ... [Atten Ch.N]`
@@ -66,8 +66,8 @@ set each channel to the specified amount.
 **Examples**:
 | HTTP Request | Result |
 | --- | --- |
-| `http://192.168.10.10/execute.php?SAA+95` | All channels set to 95 dB |
-| `http://192.168.10.10/execute.php?SAA+20+30+40+50` | For an 8 channel device, channels 1, 2, 3, and 4 are set to 20, 30, 40, and 50 respectively. Channels 5-8 are unaffected. |
+| `http://<IP_ADDRESS>/execute.php?SAA+95` | All channels set to 95 dB |
+| `http://<IP_ADDRESS>/execute.php?SAA+20+30+40+50` | For an 8 channel device, channels 1, 2, 3, and 4 are set to 20, 30, 40, and 50 respectively. Channels 5-8 are unaffected. |
 
 #### RAMP
 **Command Format**: `RAMP [Ch.1] [Ch.2] ... [Ch.N] [Atten Start] [Atten Stop] [Dwell]`
@@ -84,7 +84,7 @@ set each channel to the specified amount.
 **Examples**:
 | HTTP Request | Result |
 | --- | --- |
-| `http://192.168.10.10/execute.php?RAMP+A+A+A+E+E+D+D+D+0.0+15.0+1.5+100` | See Below |
+| `http://<IP_ADDRESS>/execute.php?RAMP+A+A+A+E+E+D+D+D+0.0+15.0+1.5+100` | See Below |
 
 Results:
 | Time (ms) | 0 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 1000 |
@@ -98,7 +98,123 @@ Results:
 | Chain 7 | 15.0 | 13.5 | 12.0 | 10.5 | 9.0 | 7.5 | 6.0 | 4.5 | 3.0 | 1.5 | 0.0 |
 | Chain 8 | 15.0 | 13.5 | 12.0 | 10.5 | 9.0 | 7.5 | 6.0 | 4.5 | 3.0 | 1.5 | 0.0 |
 
-_Note: In this command, if Type is decimal, a trailing decimal **must** be included even if number is whole (i.e. 95 must be 95.0). Also, this http request will not return a response until the operation has finished. So if the start is 0.0, the end is 30.0, the step is 0.25, and the dwell is 100, the request won't complete for 12 seconds, plus any processing time._
+Notes: 
+1. In this command, if Type is decimal, a trailing decimal **must** be included even if number is whole (i.e. 95 must be 95.0).
+2. The terms used for “Ascending” and “Descending” refer to the absolute values of the attenuation levels. For example, “Descending” refers to the rate of decline from |-63| dB to |-0|dB where “Ascending” is the increase from |-0| to |-63|
+3. This http request will not return a response until the operation has finished. So if the start is 0.0, the end is 30.0, the step is 0.25, and the dwell is 100, the request won't complete for 12 seconds, plus any processing time. 
+4. Before executing this tool, ensure the user knows this fact.
+4. All channels must be included for this request. So if you have an 8 channel device and you only want to change the first 4 channels, you must use A+A+A+A+E+E+E+E.
+5. The HTTP response will only return the first 35-45 steps in the ramp. Before and after the operation has finished, request the attenuation values of all channels with the `STATUS` command to ensure that the operation finished correctly. For example, if you have the request `http://192.168.10.87/execute.php?RAMP+A+A+A+A+E+E+E+E+0.0+30.0+0.25+100`, the request will still have 120 steps and take 12 seconds, but you receive the below response:
+```
+
+# of steps: 120
+
+
+                CHANNEL STATUS
+Step#   1       2       3       4       5       6       7       8       Time (ms)
+------------------------------------------------
+0       0.0     0.0     0.0     0.0     0.0   0.0     0.0     0.0     0
+1       0.25    0.25    0.25    0.25    0.0   0.0     0.0     0.0     100
+2       0.5     0.5     0.5     0.5     0.0   0.0     0.0     0.0     200
+3       0.75    0.75    0.75    0.75    0.0   0.0     0.0     0.0     300
+4       1.0     1.0     1.0     1.0     0.0   0.0     0.0     0.0     400
+5       1.25    1.25    1.25    1.25    0.0   0.0     0.0     0.0     500
+6       1.5     1.5     1.5     1.5     0.0   0.0     0.0     0.0     600
+7       1.75    1.75    1.75    1.75    0.0   0.0     0.0     0.0     700
+8       2.0     2.0     2.0     2.0     0.0   0.0     0.0     0.0     800
+9       2.25    2.25    2.25    2.25    0.0   0.0     0.0     0.0     900
+10      2.5     2.5     2.5     2.5     0.0   0.0     0.0     0.0     1000
+11      2.75    2.75    2.75    2.75    0.0   0.0     0.0     0.0     1100
+12      3.0     3.0     3.0     3.0     0.0   0.0     0.0     0.0     1200
+13      3.25    3.25    3.25    3.25    0.0   0.0     0.0     0.0     1300
+14      3.5     3.5     3.5     3.5     0.0   0.0     0.0     0.0     1400
+15      3.75    3.75    3.75    3.75    0.0   0.0     0.0     0.0     1500
+16      4.0     4.0     4.0     4.0     0.0   0.0     0.0     0.0     1600
+17      4.25    4.25    4.25    4.25    0.0   0.0     0.0     0.0     1700
+18      4.5     4.5     4.5     4.5     0.0   0.0     0.0     0.0     1800
+19      4.75    4.75    4.75    4.75    0.0   0.0     0.0     0.0     1900
+20      5.0     5.0     5.0     5.0     0.0   0.0     0.0     0.0     2000
+21      5.25    5.25    5.25    5.25    0.0   0.0     0.0     0.0     2100
+22      5.5     5.5     5.5     5.5     0.0   0.0     0.0     0.0     2200
+23      5.75    5.75    5.75    5.75    0.0   0.0     0.0     0.0     2300
+24      6.0     6.0     6.0     6.0     0.0   0.0     0.0     0.0     2400
+25      6.25    6.25    6.25    6.25    0.0   0.0     0.0     0.0     2500
+26      6.5     6.5     6.5     6.5     0.0   0.0     0.0     0.0     2600
+27      6.75    6.75    6.75    6.75    0.0   0.0     0.0     0.0     2700
+28      7.0     7.0     7.0     7.0     0.0   0.0     0.0     0.0     2800
+29      7.25    7.25    7.25    7.25    0.0   0.0     0.0     0.0     2900
+30      7.5     7.5     7.5     7.5     0.0   0.0     0.0     0.0     3000
+31      7.75    7.75    7.75    7.75    0.0   0.0     0.0     0.0     3100
+32      8.0     8.0     8.0     8.0     0.0   0.0     0.0     0.0     3200
+33      8.25    8.25    8.25    8.25    0.0   0.0     0.0     0.0     3300
+34      8.5     8.5     8.5     8.5     0.0   0.0     0.0     0.0     3400
+35      8.75    8.75    8.75    8.75    0.0   0.0     0.0     0.0     3500
+36      9.0     9.0     9.0     9.0     0.0   0.0     0.0     0.0     3600
+37      9.25    9.25    9.25    9.25    0.0   0.0     0.0     0.0     3700
+38      9.5     9.5     9.5     9.5     0.0   0.0     0.0     0.0     3800
+39      9.75    9.75    9.75    9.75    0.0   0.0     0.0     0.0     3900
+40      10.0    10.0    10.0    10.0    0.0   0.0     0.0     0.0     4000
+41      10.25   10.25   10.25   10.25   0.0   0.0     0.0     0.0     4100
+42      10.5    10.5    10.5    10.5    0.0   0.0     0.0     0.0     4200
+```
+
+
+#### RAND
+**Command Format**: `RAND [Ch.N] [Atten Start] [Atten Stop]`
+**Description**: Sets designated channel to a random attenuation level between two limits
+**Parameters**:
+| Parameter | Type | Description |
+| --- | --- | --- |
+| [Ch.N] | Integer | Specific chain to change |
+| [Atten Start] | Decimal | Low end of attenuation range |
+| [Atten Stop] | Decimal | High end of attenuation range |
+
+**Example**: 
+| HTTP Request | Result |
+| --- | --- |
+| `http://<IP_ADDRESS>/execute.php?RAND+1+25+60` | Attenuation on chain 1 is changed to a random value between 25 dB and 60 dB|
+
+### RANDALL
+**Command Format**: `RANDALL [Atten Start] [Atten Stop] [Consistent?]`
+**Description**: Changes all channels to a random attenuation level between two limits
+**Parameters**:
+| Parameter | Type | Description |
+| --- | --- | --- |
+| [Atten Start] | Decimal | Low end of attenuation range |
+| [Atten Stop] | Decimal | High end of attenuation range |
+| [Consistent?] | Integer | Specifies if all channels to be changed to the same random value or if each channel should have an individual random attenuation. **[1 = Yes, 0 = No]** |
+
+**Example**: 
+| HTTP Request | Result |
+| --- | --- |
+| `http://<IP_ADDRESS>/execute.php?RANDALL+25+60+0` | Attenuation on all channels are changed to different random values between 25 dB and 60 dB|
+| `http://<IP_ADDRESS>/execute.php?RANDALL+25+60+1` | Attenuation on all channels are changed to the same random value between 25 dB and 60 dB|
+
+#### INFO
+**Command Format**: `INFO`
+**Description**: Displays the device's information
+**Parameters**:
+| Parameter | Type | Description |
+| --- | --- | --- |
+| _None_ | _None_ | _None_ |
+
+**Example**: 
+| HTTP Request | Result |
+| --- | --- |
+| `http://<IP_ADDRESS>/execute.php?INFO` | Adaura Technologies R3 Series 8-Channel RF Attenuator (95dB, 8GHz)<br><br>---- Device Information ----<br>Model: AD-USB8AR38G95<br>SN: R3880951074<br>FW Ver: 3.20<br>FW Date: Aug 14 2025<br>BL Ver: 4.10<br>MFG Date: DEC2025<br>Default Attenuations: 95.0 95.0 95.0 95.0 95.0 95.0 95.0 95.0<br>---- TCP/IP Information ----<br>IP Address: <IP_ADDRESS><br>Subnet: 255.255.255.0<br>Gateway: \<GATEWAY\><br>DHCP: Enabled |
+
+#### STATUS
+**Command Format**: `STATUS`
+**Description**: Displays the current attenuation levels for each channel
+**Parameters**:
+| Parameter | Type | Description |
+| --- | --- | --- |
+| _None_ | _None_ | _None_ |
+
+**Example**: 
+| HTTP Request | Result |
+| --- | --- |
+| `http://<IP_ADDRESS>/execute.php?STATUS` | Channel 1: 35.0<br>Channel 2: 35.0<br>Channel 3: 21.0<br>Channel 4: 20.0<br>Channel 5: 0.0<br>Channel 6: 0.0<br>Channel 7: 0.0<br>Channel 8: 0.0 |
 
 ---
 
