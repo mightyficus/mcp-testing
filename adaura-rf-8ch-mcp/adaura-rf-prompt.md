@@ -18,13 +18,87 @@ Before generating the MCP server, please provide:
 
 5. **Data Sources**: Will this access files, databases, APIs, or other data sources?
 
-Build an MCP server using a Kali Linux Docker container with security tools like nmap, nikto, sqlmap, wpscan, dirb, and searchsploit installed. Create Python functions wrapped with FastMCP decorators for each tool, sanitizing inputs and returning formatted text results. Run as non-root with proper capabilities set for network tools, and include basic environment variables for configuration.
+Build an MCP Server for interacting with an AdauraTech 8-channel Programmable RF attenuator via its RESTful API. There is API documentation, but it can be misleading, so I will manually provide the API documentation below, as well as pertinent notes for specific endpoints. I will also provide the basic request format.
 
-Create it in a way where I can perform web pentests on servers in my own environment, for educational purposes. 
+The most important features will be setting the attenuation for specific channels, setting attenuation for chains (groups of channels), setting attenuation for all channels, ramping ("fading") channels bidirectionally, randomizing the attenuation for specific channels and all channels, and retreiving current attenuation values for channels. 
 
-If any information is missing or unclear, I will ask for clarification before proceeding.
+We will be using this in a lab to artificially simulate WiFi roaming events for clients in environments with more than one access point. For this reason, the most important feature is the "Ramp" test, where the attenuator will gradually increase or decrease the attenuation of specific channels to simulate the client getting closer or farther away from the AP. We will ramp up the attenuation on one AP while ramping down the attenuation for another AP at the same time. 
 
-  
+The API requires simple HTTP authentication. This defaults to admin:admin unless the user states otherwise. It also requires the IP address of the attenuator, which the user will provide, as the IP may change between tests.
+
+This specific MCP server should only require accessing the API. If asked for a report, simply provide one in markdown format to the user. 
+
+
+If any information is missing or unclear, ask for clarification before proceeding.
+
+Here is the API documentation that you will need:
+
+### Basic Call Format
+In cURL format: `curl -u admin:admin 'http://<IP_ADDRESS>/execute.php?CMD+PARAMETER+PARAMETER+...'`
+
+
+### Attenuation Commands
+
+#### Set Attenuation
+**Command Format**: `SET [Ch] [Atten]`
+**Description**: Sets designated chain's attenuation level
+**Parameters**:
+| Parameter | Type | Description |
+| --- | --- | --- |
+| [Ch] | Integer | Specific chain to change |
+| [Atten] | Decimal | Attenuation amount |
+
+**Example**: 
+| HTTP Request | Result |
+| --- | --- |
+| `http://192.168.10.10/execute.php?SET+1+95` | Attenuation on chain 1 is changed to 95 dB |
+
+#### Set All Attenuators
+**Command Format**: `SAA [Atten]` **or** `SAA [Atten Ch.1] [Atten Ch.2] ... [Atten Ch.N]`
+**Description**: Sets all attenuators to a designated attenuation level. Entering a single attenuation amount will set all
+channels to that amount. Meanwhile, specifying attenuation levels for each channel in a multi-channel device will
+set each channel to the specified amount.
+**Parameters**:
+| Parameter | Type | Description |
+| --- | --- | --- |
+| [Atten] | Decimal | Attenuation amount |
+
+**Examples**:
+| HTTP Request | Result |
+| --- | --- |
+| `http://192.168.10.10/execute.php?SAA+95` | All channels set to 95 dB |
+| `http://192.168.10.10/execute.php?SAA+20+30+40+50` | For an 8 channel device, channels 1, 2, 3, and 4 are set to 20, 30, 40, and 50 respectively. Channels 5-8 are unaffected. |
+
+#### RAMP
+**Command Format**: `RAMP [Ch.1] [Ch.2] ... [Ch.N] [Atten Start] [Atten Stop] [Dwell]`
+**Description**: Fades the attenuation levels accross each channel.
+**Parameters**:
+| Parameter | Type | Description |
+| --- | --- | --- |
+| Ch.N | Single Character<br>"A" = Ascend<br>"D" = Descend<br>"E" = Exclude from ramp | Attenuation Direction |
+| [Atten Start] | Decimal | Low end of attenuation range |
+| [Atten Stop] | Decimal | High end of attenuation range |
+| [Step] | Decimal | Amount of change in attenuation per step |
+| [Dwell] | Integer | Time per step in milliseconds (ms) |
+
+**Examples**:
+| HTTP Request | Result |
+| --- | --- |
+| `http://192.168.10.10/execute.php?RAMP+A+A+A+E+E+D+D+D+0.0+15.0+1.5+100` | See Below |
+
+Results:
+| Time (ms) | 0 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 1000 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Chain 1 | 0.0 | 1.5 | 3.0 | 4.5 | 6.0 | 7.5 | 9.0 | 10.5 | 12.0 | 13.5 | 15.0 |
+| Chain 2 | 0.0 | 1.5 | 3.0 | 4.5 | 6.0 | 7.5 | 9.0 | 10.5 | 12.0 | 13.5 | 15.0 |
+| Chain 3 | 0.0 | 1.5 | 3.0 | 4.5 | 6.0 | 7.5 | 9.0 | 10.5 | 12.0 | 13.5 | 15.0 |
+| Chain 4 | - | - | - | - | - | - | - | - | - | - | - |
+| Chain 5 | - | - | - | - | - | - | - | - | - | - | - |
+| Chain 6 | 15.0 | 13.5 | 12.0 | 10.5 | 9.0 | 7.5 | 6.0 | 4.5 | 3.0 | 1.5 | 0.0 |
+| Chain 7 | 15.0 | 13.5 | 12.0 | 10.5 | 9.0 | 7.5 | 6.0 | 4.5 | 3.0 | 1.5 | 0.0 |
+| Chain 8 | 15.0 | 13.5 | 12.0 | 10.5 | 9.0 | 7.5 | 6.0 | 4.5 | 3.0 | 1.5 | 0.0 |
+
+_Note: In this command, if Type is decimal, a trailing decimal **must** be included even if number is whole (i.e. 95 must be 95.0). Also, this http request will not return a response until the operation has finished. So if the start is 0.0, the end is 30.0, the step is 0.25, and the dwell is 100, the request won't complete for 12 seconds, plus any processing time._
 
 ---
 
