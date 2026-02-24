@@ -209,5 +209,5 @@ __marimo__/
 unifi-lab-mcp-main/
 lab-config.json
 
-.claude/*
-!.claude/settings.json
+**/.claude/*
+**/!.claude/settings.json
