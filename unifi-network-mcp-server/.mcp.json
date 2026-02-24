@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "adaura-rf": {
+      "command": "python",
+      "args": ["${HOME}/mcp-testing/adaura-rf-8ch-mcp/adaura_rf_server.py"]
+    },
+    "unifi-network": {
+      "command": "python",
+      "args": ["${HOME}/mcp-testing/unifi-network-mcp-server/unifi_network_server.py"]
+    }
+  }
+}
