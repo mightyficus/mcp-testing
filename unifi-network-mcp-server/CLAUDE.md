@@ -21,28 +21,41 @@ These rules are **non-negotiable** — violating them breaks Claude Desktop:
 
 ```
 unifi-network-mcp-server/
-├── Dockerfile                  # python:3.11-slim, non-root mcpuser, /reports dir
-├── requirements.txt            # mcp[cli]>=1.2.0, httpx
-├── unifi_network_server.py     # All helpers + 33 tools + server startup
-├── readme.txt                  # Full documentation
-├── mcp-builder-prompt-unifi.md # NetworkChuck builder template (catalog/registry/config formats)
-└── CLAUDE.md                   # This file
+├── unifi_network_server.py          # Entrypoint: creates FastMCP, imports all tool modules, runs server
+├── helpers.py                       # All 14 internal helper functions + logging setup + constants
+├── tools/
+│   ├── __init__.py                  # Empty
+│   ├── system_site.py               # Category 1: get_app_info, list_sites, get_site_settings (3 tools)
+│   ├── devices.py                   # Category 2: list/get/restart/adopt devices (7 tools)
+│   ├── firmware.py                  # Category 3: upgrade/channel/bulk firmware ops (5 tools)
+│   ├── wifi.py                      # Category 4: CRUD WiFi broadcasts (5 tools)
+│   ├── clients.py                   # Category 5: list/get clients, guest access (3 tools)
+│   ├── networks.py                  # Category 6: CRUD networks/VLANs (4 tools)
+│   ├── hotspot_firewall.py          # Category 7: vouchers + firewall policies (4 tools)
+│   └── reporting.py                 # Category 8: device + WiFi reports (2 tools)
+├── Dockerfile                       # python:3.11-slim, non-root mcpuser, /reports dir
+├── requirements.txt                 # mcp[cli]>=1.2.0, httpx
+├── readme.txt                       # Full documentation
+├── mcp-builder-prompt-unifi.md      # NetworkChuck builder template
+└── CLAUDE.md                        # This file
 ```
 
-### Server Structure (unifi_network_server.py)
+### Server Structure
 
-1. **Imports & logging** — stdlib + httpx + FastMCP, logging to stderr
-2. **Internal helpers** (not tools):
-   - `_get_headers()` — builds auth headers from `UNIFI_API_KEY` env var
-   - `_api_url()` / `_legacy_url()` — URL builders for public and legacy APIs
-   - `_api_get/post/put/delete()` — async HTTP for Integration API
-   - `_legacy_get/post()` — async HTTP for legacy Network API
-   - `_paginated_get()` — fetches all pages (200 per page)
-   - `_format_device()` / `_format_client()` — dict → readable string
-   - `_detect_kind()` — device type detection (ap/switch/unknown)
-   - `_write_report()` — writes markdown to `/reports/`
-3. **33 MCP tools** organized in 8 categories
-4. **Server startup** — `mcp.run(transport="stdio")`
+**`unifi_network_server.py`** (entrypoint):
+- Creates `FastMCP("unifi-network")` instance
+- Imports all 8 tool modules and calls `mod.register(mcp)` for each
+- Runs `mcp.run(transport="stdio")`
+
+**`helpers.py`** (shared internals):
+- Logging setup (stderr) + `logger` instance
+- `REPORTS_DIR` constant
+- 14 helper functions: `_get_headers`, `_api_url`, `_legacy_url`, `_api_get/post/put/delete`, `_legacy_get/post`, `_paginated_get`, `_format_device`, `_format_client`, `_detect_kind`, `_write_report`
+
+**`tools/*.py`** (tool modules):
+- Each module exports a `register(mcp)` function
+- Inside `register()`, tools are defined with `@mcp.tool()` decorators
+- Each module imports only the helpers it needs
 
 ### API Surfaces
 
@@ -53,22 +66,31 @@ Every tool accepts `console_ip: str = ""` since the IP may vary between consoles
 
 ## How to Add a New Tool
 
+Add the tool inside the `register(mcp)` function of the appropriate `tools/*.py` module:
+
 ```python
-@mcp.tool()
-async def my_new_tool(console_ip: str = "", site_id: str = "", my_param: str = "") -> str:
-    """Single-line description of what this tool does."""
-    logger.info(f"my_new_tool for {console_ip}")
-    if not console_ip.strip():
-        return "Error: console_ip is required"
-    if not my_param.strip():
-        return "Error: my_param is required"
-    try:
-        data = await _api_get(console_ip, f"/sites/{site_id}/some/endpoint")
-        return f"Success: {json.dumps(data, indent=2)}"
-    except Exception as e:
-        logger.error(f"my_new_tool error: {e}")
-        return f"Error: {str(e)}"
+# tools/my_category.py
+from helpers import _api_get, logger
+
+def register(mcp):
+
+    @mcp.tool()
+    async def my_new_tool(console_ip: str = "", site_id: str = "", my_param: str = "") -> str:
+        """Single-line description of what this tool does."""
+        logger.info(f"my_new_tool for {console_ip}")
+        if not console_ip.strip():
+            return "Error: console_ip is required"
+        if not my_param.strip():
+            return "Error: my_param is required"
+        try:
+            data = await _api_get(console_ip, f"/sites/{site_id}/some/endpoint")
+            return f"Success: {json.dumps(data, indent=2)}"
+        except Exception as e:
+            logger.error(f"my_new_tool error: {e}")
+            return f"Error: {str(e)}"
 ```
+
+If adding a new category, also import and register the module in `unifi_network_server.py`.
 
 After adding, also:
 1. Add `- name: my_new_tool` to `custom.yaml` catalog
